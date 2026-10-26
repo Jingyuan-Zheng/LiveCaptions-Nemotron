@@ -18,7 +18,6 @@
 
 #include <ctype.h>
 #include <glib/gi18n.h>
-#include <april_api.h>
 #include <adwaita.h>
 #include "livecaptions-history-window.h"
 #include "history.h"
@@ -146,7 +145,7 @@ static void add_session(LiveCaptionsHistoryWindow *self, const struct history_se
         } else {
             GString *entry_text = g_string_new(NULL);
 
-            if(entry->tokens[0].flags & APRIL_TOKEN_FLAG_WORD_BOUNDARY_BIT) {
+            if(entry->tokens[0].flags & CAPTION_UNIT_WORD_START) {
                 tcap.previous_was_period = true;
             }
 
@@ -154,7 +153,7 @@ static void add_session(LiveCaptionsHistoryWindow *self, const struct history_se
                 size_t skipahead = 1;
                 const char *token = entry->tokens[j].token;
 
-                if((filter_mode > FILTER_NONE) && (entry->tokens[j].flags & APRIL_TOKEN_FLAG_WORD_BOUNDARY_BIT)) {
+                if((filter_mode > FILTER_NONE) && (entry->tokens[j].flags & CAPTION_UNIT_WORD_START)) {
                     size_t skip = get_filter_skip_history(entry->tokens, j, entry->tokens_count, filter_mode);
                     if(skip > 0) {
                         skipahead = skip;
@@ -320,7 +319,7 @@ static void livecaptions_history_window_class_init(LiveCaptionsHistoryWindowClas
 static void livecaptions_history_window_init(LiveCaptionsHistoryWindow *self) {
     gtk_widget_init_template(GTK_WIDGET(self));
 
-    self->settings = g_settings_new("net.sapples.LiveCaptions");
+    self->settings = g_settings_new("net.sapples.LiveCaptions.Nemotron");
 
 
     self->session_load = 0;
@@ -329,4 +328,3 @@ static void livecaptions_history_window_init(LiveCaptionsHistoryWindow *self) {
     g_idle_add(force_bottom, self);
     g_idle_add(deferred_update_keep_above, self);
 }
-

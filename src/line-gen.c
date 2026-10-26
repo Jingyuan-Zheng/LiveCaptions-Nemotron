@@ -27,8 +27,6 @@
 #include <sys/mman.h>
 #include <glib.h>
 #include <stdbool.h>
-#include <april_api.h>
-
 #include <adwaita.h>
 
 #include "line-gen.h"
@@ -43,7 +41,7 @@ void token_capitalizer_init(struct token_capitalizer *tc) {
 }
 
 bool token_capitalizer_next(struct token_capitalizer *tc, const char *token, int flags, const char *subsequent_token, int subsequent_flags) {
-    if((flags & APRIL_TOKEN_FLAG_SENTENCE_END_BIT) != 0){
+    if((flags & CAPTION_UNIT_SENTENCE_END) != 0){
         tc->previous_was_period = true;
         return false;
     }
@@ -53,7 +51,7 @@ bool token_capitalizer_next(struct token_capitalizer *tc, const char *token, int
         return true;
     }
 
-    if((tc->previous_was_period) && (flags & APRIL_TOKEN_FLAG_WORD_BOUNDARY_BIT)){
+    if((tc->previous_was_period) && (flags & CAPTION_UNIT_WORD_START)){
         // If bare space token, capitalize the subsequent token since space can't
         // be capitalized.
         if((token[0] == ' ') && (token[1] == 0)){
@@ -69,7 +67,7 @@ bool token_capitalizer_next(struct token_capitalizer *tc, const char *token, int
     if(tc->is_english) {
         if((token[0] == ' ') && (token[1] == 'I') && (token[2] == 0)){
             if(subsequent_token != NULL){
-                if (((subsequent_flags & (APRIL_TOKEN_FLAG_WORD_BOUNDARY_BIT | APRIL_TOKEN_FLAG_SENTENCE_END_BIT)) != 0) || (subsequent_token[0] == '\'')){
+                if (((subsequent_flags & (CAPTION_UNIT_WORD_START | CAPTION_UNIT_SENTENCE_END)) != 0) || (subsequent_token[0] == '\'')){
                     return true;
                 }
             }else{
@@ -108,7 +106,7 @@ void line_generator_init(struct line_generator *lg) {
     lg->current_line = 0;
     lg->active_start_of_lines[0] = 0;
 
-    if(settings == NULL) settings = g_settings_new("net.sapples.LiveCaptions");
+    if(settings == NULL) settings = g_settings_new("net.sapples.LiveCaptions.Nemotron");
 
     token_capitalizer_init(&lg->tcap);
 }
@@ -124,16 +122,16 @@ static int line_generator_get_text_width(struct line_generator *lg, const char *
 }
 
 #define MAX_TOKEN_SCRATCH 72
-void line_generator_update(struct line_generator *lg, size_t num_tokens, const AprilToken *tokens) {
+void line_generator_update(struct line_generator *lg, size_t num_tokens, const CaptionUnit *tokens) {
     // Add capitalization information
     static bool should_capitalize[1024];
 
     token_capitalizer_rewind(&lg->tcap);
     for(size_t i=0; i<num_tokens; i++){
         if((i+1) < num_tokens) {
-            should_capitalize[i] = token_capitalizer_next(&lg->tcap, tokens[i].token, tokens[i].flags, tokens[i+1].token, tokens[i+1].flags);
+            should_capitalize[i] = token_capitalizer_next(&lg->tcap, tokens[i].text, tokens[i].flags, tokens[i+1].text, tokens[i+1].flags);
         }else{
-            should_capitalize[i] = token_capitalizer_next(&lg->tcap, tokens[i].token, tokens[i].flags, NULL, 0);
+            should_capitalize[i] = token_capitalizer_next(&lg->tcap, tokens[i].text, tokens[i].flags, NULL, 0);
         }
     }
 
@@ -179,13 +177,13 @@ void line_generator_update(struct line_generator *lg, size_t num_tokens, const A
         // print line
         for(size_t j=start_of_line; j<((size_t)end);) {
             size_t skipahead = 1;
-            const char *token = tokens[j].token;
+            const char *token = tokens[j].text;
 
             bool should_be_capitalized = should_capitalize[j];
 
             if(use_lowercase){
                 char *out = token_scratch;
-                const char *p = tokens[j].token;
+                const char *p = tokens[j].text;
                 gunichar c;
                 while (*p) {
                     c = g_utf8_get_char_validated(p, -1);
@@ -222,7 +220,7 @@ void line_generator_update(struct line_generator *lg, size_t num_tokens, const A
             }
 
             // filter current word, if applicable
-            if((filter_mode > FILTER_NONE) && (tokens[j].flags & APRIL_TOKEN_FLAG_WORD_BOUNDARY_BIT)) {
+            if((filter_mode > FILTER_NONE) && (tokens[j].flags & CAPTION_UNIT_WORD_START)) {
                 size_t skip = get_filter_skip(tokens, j, num_tokens, filter_mode);
                 if(skip > 0) {
                     skipahead = skip;
@@ -243,7 +241,7 @@ void line_generator_update(struct line_generator *lg, size_t num_tokens, const A
                 if(curr->len >= lg->max_text_width) {
                     size_t tgt_brk = j;
                     // find previous word boundary
-                    while((!(tokens[tgt_brk].flags & APRIL_TOKEN_FLAG_WORD_BOUNDARY_BIT)) && (tgt_brk > start_of_line)) tgt_brk--;
+                    while((!(tokens[tgt_brk].flags & CAPTION_UNIT_WORD_START)) && (tgt_brk > start_of_line)) tgt_brk--;
 
                     // if we backtracked all the way to the start of line, just give up and break here
                     // unless this line has starting text
@@ -259,9 +257,9 @@ void line_generator_update(struct line_generator *lg, size_t num_tokens, const A
             }
 
             // write the actual line
-            int alpha = (int)((tokens[j].logprob + 2.0) / 8.0 * 65536.0);
-            alpha /= 2.0;
-            alpha += 32768;
+            float confidence = tokens[j].confidence;
+            if(confidence < 0.0f || confidence > 1.0f) confidence = 1.0f;
+            int alpha = (int)((0.15f + (0.85f * confidence)) * 65535.0f);
             if(alpha < 10000) alpha = 10000;
             if(alpha > 65535) alpha = 65535;
 

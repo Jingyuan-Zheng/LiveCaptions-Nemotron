@@ -32,7 +32,9 @@ struct _LiveCaptionsWindow {
     GtkBox           *side_box;
     GtkBox           *side_box_tiny;
     GtkToggleButton  *mic_button;
+    GtkSwitch        *translation_switch;
     GtkLabel         *label;
+    GtkLabel         *translation_label;
 
     GtkCssProvider *css_provider;
 

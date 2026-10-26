@@ -22,8 +22,6 @@
 #include "audiocap-internal.h"
 
 #include <pulse/pulseaudio.h>
-#include <april_api.h>
-
 #define USE_PULSEAUDIO 1
 
 struct audio_thread_i {

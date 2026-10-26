@@ -31,8 +31,6 @@
 #include <pipewire/pipewire.h>
 #include <glib.h>
 
-#include <april_api.h>
-
 #include "audiocap-internal.h"
 #include "audiocap.h"
 

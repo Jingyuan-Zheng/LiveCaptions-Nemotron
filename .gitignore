@@ -3,6 +3,17 @@ build/*
 _build
 _build/*
 build-dir
+builddir
+builddir/
 .flatpak-builder
 result
 aprilv0_en-us.april
+*.gguf
+*.part
+compile_commands.json
+
+# Local editor and environment files
+.env
+.env.*
+.vscode/
+.idea/

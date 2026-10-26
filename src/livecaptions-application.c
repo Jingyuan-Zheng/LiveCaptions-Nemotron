@@ -95,7 +95,12 @@ static void livecaptions_application_activate(GApplication *app) {
         window = g_object_new(LIVECAPTIONS_TYPE_WINDOW, "application", GTK_APPLICATION(self), NULL);
 
         LiveCaptionsWindow *lc_window = LIVECAPTIONS_WINDOW(window);
+        g_autofree char *translation_model = g_settings_get_string(self->settings, "translation-model");
+        g_autofree char *translation_target_language = g_settings_get_string(self->settings, "translation-target-language");
+        asr_thread_set_translation_configuration(self->asr, translation_model, translation_target_language);
         asr_thread_set_main_window(self->asr, lc_window);
+        asr_thread_set_translation_enabled(self->asr,
+            g_settings_get_boolean(self->settings, "translation-enabled"));
 
         asr_thread_set_text_stream_active(self->asr, g_settings_get_boolean(self->settings, "text-stream-active"));
         
@@ -278,6 +283,13 @@ static void on_settings_change(G_GNUC_UNUSED GSettings *settings,
                 g_settings_get_boolean(self->settings, "keep-on-top")
             );
         }
+    }else if(g_str_equal(key, "translation-enabled")){
+        asr_thread_set_translation_enabled(self->asr,
+            g_settings_get_boolean(self->settings, "translation-enabled"));
+    }else if(g_str_equal(key, "translation-model") || g_str_equal(key, "translation-target-language")){
+        g_autofree char *translation_model = g_settings_get_string(self->settings, "translation-model");
+        g_autofree char *translation_target_language = g_settings_get_string(self->settings, "translation-target-language");
+        asr_thread_set_translation_configuration(self->asr, translation_model, translation_target_language);
     }else if(g_str_equal(key, "text-stream-active")){
         if(self->dbus_external) {
             gboolean active = g_settings_get_boolean(self->settings, "text-stream-active");
@@ -310,7 +322,7 @@ livecaptions_application_toggle_microphone(GSimpleAction *action,
 }
 
 static void livecaptions_application_init(LiveCaptionsApplication *self) {
-    self->settings = g_settings_new("net.sapples.LiveCaptions");
+    self->settings = g_settings_new("net.sapples.LiveCaptions.Nemotron");
 
     g_autoptr(GSimpleAction) quit_action = g_simple_action_new("quit", NULL);
     g_signal_connect_swapped(quit_action, "activate", G_CALLBACK(g_application_quit), self);

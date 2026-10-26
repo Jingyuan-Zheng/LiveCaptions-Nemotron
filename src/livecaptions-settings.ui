@@ -9,7 +9,7 @@
 
     <child>
       <object class="AdwPreferencesPage">
-        <property name="icon_name">settings-symbolic</property>
+        <property name="icon_name">preferences-system-symbolic</property>
         <property name="title">Options</property>
 
 
@@ -43,10 +43,23 @@
 
             <child>
               <object class="AdwActionRow" id="font_button_ar">
-                <property name="title" translatable="yes">Change Font</property>
+                <property name="title" translatable="yes">Original Caption Font</property>
 
                 <child type="suffix">
                   <object class="GtkFontButton" id="font_button">
+                    <property name="valign">center</property>
+                    <property name="use-font">True</property>
+                  </object>
+                </child>
+              </object>
+            </child>
+
+            <child>
+              <object class="AdwActionRow" id="translation_font_button_ar">
+                <property name="title" translatable="yes">Translation Caption Font</property>
+
+                <child type="suffix">
+                  <object class="GtkFontButton" id="translation_font_button">
                     <property name="valign">center</property>
                     <property name="use-font">True</property>
                   </object>
@@ -63,13 +76,14 @@
 
             <child>
               <object class="AdwSwitchRow" id="fade_text_switch">
+                <property name="visible">False</property>
                 <property name="title" translatable="yes">Fade Text based on Confidence</property>
               </object>
             </child>
 
             <child>
               <object class="AdwActionRow">
-                <property name="title" translatable="yes">Window Width</property>
+                <property name="title" translatable="yes">Caption Window Width</property>
 
                 <child type="suffix">
                   <object class="GtkScale" id="line_width_scale">
@@ -78,8 +92,6 @@
                     <property name="width-request">200</property>
                     <property name="adjustment">
                       <object class="GtkAdjustment" id="line_width_adjustment">
-                        <property name="lower">20</property>
-                        <property name="upper">140</property>
                         <property name="step-increment">1</property>
                         <property name="page-increment">1</property>
                       </object>
@@ -113,6 +125,24 @@
           </object>
         </child>
 
+
+        <child>
+          <object class="AdwPreferencesGroup">
+            <property name="title" translatable="yes">Translation</property>
+            <child>
+              <object class="AdwSwitchRow" id="translation_settings_switch">
+                <property name="title" translatable="yes">Enable Translation</property>
+                <property name="subtitle" translatable="yes">Uses the selected local translation model</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwEntryRow" id="translation_language_entry">
+                <property name="title" translatable="yes">Translate Into</property>
+                <property name="show-apply-button">True</property>
+              </object>
+            </child>
+          </object>
+        </child>
 
         <child>
           <object class="AdwPreferencesGroup">
@@ -164,6 +194,7 @@
           <object class="AdwPreferencesGroup">
             <property name="description" translatable="yes"></property>
             <property name="title" translatable="yes">Performance</property>
+            <property name="visible">False</property>
             <child>
               <object class="AdwActionRow">
                 <property name="title" translatable="yes">Speed</property>
@@ -241,78 +272,47 @@
 
       </object>
     </child>
-
-
     <child>
       <object class="AdwPreferencesPage">
-        <property name="icon_name">computer-chip-symbolic</property>
-        <property name="title">Model</property>
-
-        <child>
-          <object class="AdwPreferencesGroup" id="models_list">
-            <property name="title" translatable="yes">Local Models</property>
-            <property name="header-suffix">
-              <object class="GtkButton">
-                <signal name="clicked" handler="add_model_cb" swapped="yes"/>
-                <property name="child">
-                  <object class="AdwButtonContent">
-                    <property name="icon-name">list-add-symbolic</property>
-                    <property name="label" translatable="yes">Add</property>
-                  </object>
-                </property>
-                <style>
-                  <class name="flat"/>
-                </style>
-              </object>
-            </property>
-
-            <child>
-              <object class="AdwActionRow">
-                <property name="activatable_widget">radio_button_1</property>
-                <property name="title" translatable="yes">Built-in Model</property>
-                <child type="prefix">
-                  <object class="GtkCheckButton" id="radio_button_1">
-                    <signal name="toggled" handler="on_builtin_toggled" swapped="yes"/>
-                    <property name="valign">center</property>
-                    <property name="active">True</property>
-                  </object>
-                </child>
-              </object>
-            </child>
-          </object>
-        </child>
-
+    <property name="icon-name">cpu-symbolic</property>
+        <property name="title" translatable="yes">Model</property>
         <child>
           <object class="AdwPreferencesGroup">
-            <property name="title"></property>
-
+            <property name="title" translatable="yes">Translation Model</property>
+            <property name="description" translatable="yes">Choose a preset or enter any installed Ollama model tag below.</property>
             <child>
               <object class="AdwActionRow">
-                <property name="title" translatable="yes">Download more models</property>
-                <property name="subtitle" translatable="no">https://abb128.github.io/april-asr/models.html</property>
-                <property name="activatable">True</property>
-                <signal name="activated" handler="download_models_cb" swapped="yes"/>
-                <child>
-                  <object class="GtkImage">
-                    <property name="icon_name">adw-external-link-symbolic</property>
+                <property name="title" translatable="yes">Preset</property>
+                <child type="suffix">
+                  <object class="GtkDropDown" id="translation_model_dropdown">
+                    <property name="valign">center</property>
+                    <property name="model">
+                      <object class="GtkStringList">
+                        <items>
+                          <item translatable="yes">HY-MT2 1.8B — Fast</item>
+                          <item translatable="yes">TranslateGemma 4B — Quality</item>
+                        </items>
+                      </object>
+                    </property>
                   </object>
                 </child>
               </object>
             </child>
-
+            <child>
+              <object class="AdwEntryRow" id="translation_model_entry">
+                <property name="title" translatable="yes">Ollama Model Tag</property>
+                <property name="show-apply-button">True</property>
+              </object>
+            </child>
+            <child>
+              <object class="AdwActionRow">
+                <property name="title" translatable="yes">HY-MT2 download</property>
+                <property name="subtitle" translatable="yes">Run: ollama run kaelri/hy-mt2:1.8b-q4_K_M</property>
+              </object>
+            </child>
           </object>
         </child>
-
       </object>
     </child>
-
   </template>
-
-  <object class="GtkFileFilter" id="file_filter">
-    <property name="name" translatable="yes">April Models</property>
-    <patterns>
-      <pattern>*.april</pattern>
-    </patterns>
-  </object>
-
 </interface>

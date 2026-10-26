@@ -21,7 +21,7 @@
 
 #include <stdint.h>
 #include <stdlib.h>
-#include <april_api.h>
+#include "caption-result.h"
 
 typedef enum FilterMode {
     FILTER_NONE = 0,
@@ -33,7 +33,7 @@ typedef enum FilterMode {
 // token count. The current index should be at a word boundary.
 // Returns the number of tokens to skip after the current index if filtered,
 // or 0 if not filtered.
-size_t get_filter_skip(const AprilToken *tokens,
+size_t get_filter_skip(const CaptionUnit *units,
                        size_t curr_idx,
                        size_t count,
                        FilterMode mode);

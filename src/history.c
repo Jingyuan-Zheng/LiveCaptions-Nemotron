@@ -45,7 +45,7 @@ void history_init(void){
 
     printf("Save file: %s\n", default_history_file);
 
-    if(settings == NULL) settings = g_settings_new("net.sapples.LiveCaptions");
+    if(settings == NULL) settings = g_settings_new("net.sapples.LiveCaptions.Nemotron");
 }
 
 
@@ -66,8 +66,8 @@ static struct history_entry *allocate_new_entry(size_t tokens_count) {
     return entry;
 }
 
-void commit_tokens_to_current_history(const AprilToken *tokens,
-                                      size_t tokens_count)
+void commit_units_to_current_history(const CaptionUnit *tokens,
+                                     size_t tokens_count)
 {
     struct history_entry *entry = allocate_new_entry(tokens_count);
 
@@ -76,14 +76,9 @@ void commit_tokens_to_current_history(const AprilToken *tokens,
     for(size_t i=0; i<tokens_count; i++){
         struct history_token *token = &entry->tokens[i];
 
-        if(strlen(tokens[i].token) >= HISTORY_TOKEN_MAX_CHARS){
-            printf("Token %s is too long! (%d)\n", tokens[i].token, strlen(tokens[i].token));
-            g_assert(false);
-        }
-
-        strcpy(&token->token[0], tokens[i].token);
-        token->logprob = tokens[i].logprob;
-        token->flags   = tokens[i].flags;
+        g_strlcpy(&token->token[0], tokens[i].text, HISTORY_TOKEN_MAX_CHARS);
+        token->confidence = tokens[i].confidence;
+        token->flags = tokens[i].flags;
     }
 }
 

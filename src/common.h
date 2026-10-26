@@ -23,4 +23,3 @@
 #define LIVECAPTIONS_VERSION "0.4.1"
 
 #define MINIMUM_BENCHMARK_RESULT (0.6)
-#define GET_MODEL_PATH() (getenv("APRIL_MODEL_PATH") == NULL) ? "/app/LiveCaptions/models/aprilv0_en-us.april" : getenv("APRIL_MODEL_PATH")

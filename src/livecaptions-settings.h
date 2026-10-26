@@ -29,16 +29,22 @@ struct _LiveCaptionsSettings {
     GSettings *settings;
 
     GtkFontButton *font_button;
+    GtkFontButton *translation_font_button;
     GtkSwitch *text_upper_switch;
     GtkSwitch *fade_text_switch;
 
     AdwActionRow *font_button_ar;
+    AdwActionRow *translation_font_button_ar;
 
     AdwSwitchRow *filter_profanity_switch;
     AdwSwitchRow *filter_slurs_switch;
     AdwSwitchRow *save_history_switch;
     AdwSwitchRow *keep_above_switch;
     AdwActionRow *text_stream_switch;
+    AdwSwitchRow *translation_settings_switch;
+    AdwEntryRow *translation_language_entry;
+    AdwEntryRow *translation_model_entry;
+    GtkDropDown *translation_model_dropdown;
 
     GtkScale *line_width_scale;
     GtkAdjustment *line_width_adjustment;

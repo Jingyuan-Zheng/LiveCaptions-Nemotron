@@ -19,7 +19,6 @@
 #include "livecaptions-config.h"
 #include "livecaptions-window.h"
 #include "livecaptions-application.h"
-#include "april_api.h"
 #include "audiocap.h"
 #include "window-helper.h"
 #include "history.h"
@@ -35,7 +34,9 @@ static void livecaptions_window_class_init (LiveCaptionsWindowClass *klass) {
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, side_box);
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, side_box_tiny);
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, mic_button);
+    gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, translation_switch);
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, label);
+    gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, translation_label);
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, too_slow_warning);
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, slow_warning);
     gtk_widget_class_bind_template_child(widget_class, LiveCaptionsWindow, slowest_warning);
@@ -54,6 +55,45 @@ static void change_button_layout(LiveCaptionsWindow *self, gint text_height){
 }
 
 const char LINE_WIDTH_TEXT_TEMPLATE[] = "This program is free software: you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version. This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.";
+
+static int get_max_caption_width(LiveCaptionsWindow *self) {
+    GtkWidget *widget = GTK_WIDGET(self);
+    GdkDisplay *display = gtk_widget_get_display(widget);
+    GtkNative *native = gtk_widget_get_native(widget);
+    GdkSurface *surface = native ? gtk_native_get_surface(native) : NULL;
+    GdkMonitor *monitor = surface ? gdk_display_get_monitor_at_surface(display, surface) : NULL;
+    gboolean owns_monitor = FALSE;
+
+    if(monitor == NULL) {
+        GListModel *monitors = gdk_display_get_monitors(display);
+        if(g_list_model_get_n_items(monitors) > 0) {
+            monitor = g_list_model_get_item(monitors, 0);
+            owns_monitor = TRUE;
+        }
+    }
+    if(monitor == NULL) return G_MAXINT;
+
+    GdkRectangle workarea;
+    gdk_monitor_get_geometry(monitor, &workarea);
+    if(owns_monitor) g_object_unref(monitor);
+
+    /* The caption label is only one part of the window.  Derive the space
+     * used by the active controls and label margins instead of subtracting a
+     * fixed pixel allowance.  The complete window can therefore grow right
+     * up to, but never beyond, the current monitor work area. */
+    GtkWidget *controls = gtk_widget_get_visible(GTK_WIDGET(self->side_box))
+        ? GTK_WIDGET(self->side_box)
+        : GTK_WIDGET(self->side_box_tiny);
+    int controls_min = 0;
+    int controls_natural = 0;
+    gtk_widget_measure(controls, GTK_ORIENTATION_HORIZONTAL, -1,
+                       &controls_min, &controls_natural, NULL, NULL);
+
+    int label_margins = gtk_widget_get_margin_start(GTK_WIDGET(self->label)) +
+                        gtk_widget_get_margin_end(GTK_WIDGET(self->label));
+    return MAX(1, workarea.width - controls_natural - label_margins);
+}
+
 static void update_line_width(LiveCaptionsWindow *self){
     if(self->font_layout != NULL) g_object_unref(self->font_layout);
 
@@ -69,19 +109,56 @@ static void update_line_width(LiveCaptionsWindow *self){
     pango_layout_set_text(layout, LINE_WIDTH_TEXT_TEMPLATE, text_len);
     pango_layout_get_size(layout, &width, &height);
 
-    height = (height / PANGO_SCALE) * 2 + 2;
-    width  = (width / PANGO_SCALE);
-    change_button_layout(self, height);
+    /* Reserve two complete lines plus ascent/descent safety room.  The label
+     * margins are outside its allocation, so a tiny fixed request clips the
+     * second line on some fonts and scale factors. */
+    height = (height / PANGO_SCALE) * 2 + 16;
+    width  = MIN(width / PANGO_SCALE, get_max_caption_width(self));
+
+    int translation_height;
+    PangoLayout *translation_layout = gtk_label_get_layout(self->translation_label);
+    translation_layout = pango_layout_copy(translation_layout);
+    pango_layout_set_width(translation_layout, -1);
+    pango_layout_set_text(translation_layout, LINE_WIDTH_TEXT_TEMPLATE, text_len);
+    pango_layout_get_size(translation_layout, NULL, &translation_height);
+    translation_height = (translation_height / PANGO_SCALE) * 2 + 16;
+    g_object_unref(translation_layout);
+
+    gboolean translation_enabled = g_settings_get_boolean(self->settings, "translation-enabled");
+    change_button_layout(self, translation_enabled ? height + translation_height : height);
 
     gtk_widget_set_size_request(GTK_WIDGET(self->label), width, height);
+    gtk_widget_set_size_request(GTK_WIDGET(self->translation_label), width, translation_height);
 
     self->max_text_width = width;
     self->font_layout = layout;
     self->font_layout_counter++;
 }
 
+static void on_caption_surface_enter_monitor(G_GNUC_UNUSED GdkSurface *surface,
+                                             G_GNUC_UNUSED GdkMonitor *monitor,
+                                             LiveCaptionsWindow *self) {
+    update_line_width(self);
+}
+
+static void on_caption_window_realize(GtkWidget *widget,
+                                      G_GNUC_UNUSED gpointer user_data) {
+    LiveCaptionsWindow *self = LIVECAPTIONS_WINDOW(widget);
+    GtkNative *native = gtk_widget_get_native(widget);
+    GdkSurface *surface = native ? gtk_native_get_surface(native) : NULL;
+    if(surface != NULL) {
+        g_signal_connect_object(surface, "enter-monitor",
+                                G_CALLBACK(on_caption_surface_enter_monitor),
+                                self, 0);
+    }
+    update_line_width(self);
+}
+
 static void update_font(LiveCaptionsWindow *self) {
-    PangoFontDescription *desc = pango_font_description_from_string(g_settings_get_string(self->settings, "font-name"));
+    g_autofree char *font_name = g_settings_get_string(self->settings, "font-name");
+    g_autofree char *translation_font_name = g_settings_get_string(self->settings, "translation-font-name");
+    PangoFontDescription *desc = pango_font_description_from_string(font_name);
+    PangoFontDescription *translation_desc = pango_font_description_from_string(translation_font_name);
 
     PangoAttribute *attr_font = pango_attr_font_desc_new(desc);
 
@@ -93,7 +170,13 @@ static void update_font(LiveCaptionsWindow *self) {
 
     gtk_label_set_attributes(self->label, attr);
 
+    PangoAttrList *translation_attr = pango_attr_list_new();
+    pango_attr_list_change(translation_attr, pango_attr_font_desc_new(translation_desc));
+    gtk_label_set_attributes(self->translation_label, translation_attr);
+    pango_attr_list_unref(translation_attr);
+
     pango_font_description_free(desc);
+    pango_font_description_free(translation_desc);
 
     update_line_width(self);
 }
@@ -121,12 +204,27 @@ static void update_keep_above(LiveCaptionsWindow *self) {
     }
 }
 
+static void update_audio_mode_visual(GtkToggleButton *button,
+                                     G_GNUC_UNUSED GParamSpec *pspec,
+                                     G_GNUC_UNUSED gpointer user_data) {
+    gboolean microphone = gtk_toggle_button_get_active(button);
+
+    gtk_button_set_icon_name(
+        GTK_BUTTON(button),
+        microphone ? "audio-input-microphone-symbolic" : "audio-speakers-symbolic"
+    );
+    gtk_widget_set_tooltip_text(
+        GTK_WIDGET(button),
+        microphone ? "Microphone input mode" : "System audio input mode"
+    );
+}
+
 static void on_settings_change(G_GNUC_UNUSED GSettings *settings,
                                char      *key,
                                gpointer   user_data){
 
     LiveCaptionsWindow *self = user_data;
-    if(g_str_equal(key, "font-name")) {
+    if(g_str_equal(key, "font-name") || g_str_equal(key, "translation-font-name")) {
         update_font(self);
     }else if(g_str_equal(key, "line-width")) {
         update_line_width(self);
@@ -134,6 +232,8 @@ static void on_settings_change(G_GNUC_UNUSED GSettings *settings,
         update_window_transparency(self);
     }else if(g_str_equal(key, "keep-on-top")) {
         update_keep_above(self);
+    }else if(g_str_equal(key, "translation-enabled")) {
+        update_line_width(self);
     }
 }
 
@@ -163,36 +263,18 @@ static gboolean show_relevant_slow_warning(void *userdata) {
         gtk_label_set_text(self->label, "");
     }
 
-    AprilASRSession session = (AprilASRSession)asr_thread_get_session(asr);
-    if(session == NULL) return G_SOURCE_CONTINUE;
-
-    float speedup = aas_realtime_get_speedup(session);
-
-    if(speedup <= 1.1) {
-        gtk_widget_set_visible(GTK_WIDGET(self->slow_warning), false);
-        gtk_widget_set_visible(GTK_WIDGET(self->slowest_warning), false);
-        gtk_widget_set_visible(GTK_WIDGET(self->too_slow_warning), false);
-    }else if(speedup <= 1.666) {
-        gtk_widget_set_visible(GTK_WIDGET(self->slow_warning), true);
-        gtk_widget_set_visible(GTK_WIDGET(self->slowest_warning), false);
-        gtk_widget_set_visible(GTK_WIDGET(self->too_slow_warning), false);
-    }else if(speedup <= 2.33){
-        gtk_widget_set_visible(GTK_WIDGET(self->slow_warning), false);
-        gtk_widget_set_visible(GTK_WIDGET(self->slowest_warning), true);
-        gtk_widget_set_visible(GTK_WIDGET(self->too_slow_warning), false);
-    }else{
-        gtk_widget_set_visible(GTK_WIDGET(self->slow_warning), false);
-        gtk_widget_set_visible(GTK_WIDGET(self->slowest_warning), false);
-        gtk_widget_set_visible(GTK_WIDGET(self->too_slow_warning), true);
-    }
+    gtk_widget_set_visible(GTK_WIDGET(self->slow_warning), false);
+    gtk_widget_set_visible(GTK_WIDGET(self->slowest_warning), false);
+    gtk_widget_set_visible(GTK_WIDGET(self->too_slow_warning), false);
 
     return G_SOURCE_CONTINUE;
 }
 
 static void livecaptions_window_init(LiveCaptionsWindow *self) {
     gtk_widget_init_template(GTK_WIDGET(self));
+    g_signal_connect(self, "realize", G_CALLBACK(on_caption_window_realize), NULL);
 
-    self->settings = g_settings_new("net.sapples.LiveCaptions");
+    self->settings = g_settings_new("net.sapples.LiveCaptions.Nemotron");
 
     self->css_provider = gtk_css_provider_new();
     GtkStyleContext *context = gtk_widget_get_style_context(GTK_WIDGET(self));
@@ -201,6 +283,11 @@ static void livecaptions_window_init(LiveCaptionsWindow *self) {
     g_signal_connect(self->settings, "changed", G_CALLBACK(on_settings_change), self);
     
     g_settings_bind(self->settings, "microphone", self->mic_button, "active", G_SETTINGS_BIND_DEFAULT);
+    g_signal_connect(self->mic_button, "notify::active",
+                     G_CALLBACK(update_audio_mode_visual), self);
+    update_audio_mode_visual(self->mic_button, NULL, self);
+    g_settings_bind(self->settings, "translation-enabled", self->translation_switch, "active", G_SETTINGS_BIND_DEFAULT);
+    g_settings_bind(self->settings, "translation-enabled", self->translation_label, "visible", G_SETTINGS_BIND_DEFAULT);
 
     self->font_layout = NULL;
     self->font_layout_counter = 0;

@@ -7,11 +7,6 @@ project('livecaptions', 'c',
                    ],
 )
 
-cmake = import('cmake')
-april = cmake.subproject('april-asr')
-
-april_lib = april.dependency('aprilasr_static')
-
 i18n = import('i18n')
 
 gnome = import('gnome')

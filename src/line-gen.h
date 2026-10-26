@@ -1,6 +1,6 @@
 /* line-gen.h
  * This file contains the declaration for line_generator, which generates
- * two lines based on AprilTokens from aprilasr
+ * caption lines from backend-neutral CaptionUnit values
  *
  * Copyright 2022 abb128
  *
@@ -23,8 +23,8 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <april_api.h>
 #include <adwaita.h>
+#include "caption-result.h"
 
 #define AC_LINE_MAX 4096
 #define AC_LINE_COUNT 2
@@ -72,7 +72,7 @@ struct line_generator {
 };
 
 void line_generator_init(struct line_generator *lg);
-void line_generator_update(struct line_generator *lg, size_t num_tokens, const AprilToken *tokens);
+void line_generator_update(struct line_generator *lg, size_t num_units, const CaptionUnit *units);
 void line_generator_finalize(struct line_generator *lg);
 void line_generator_break(struct line_generator *lg);
 void line_generator_set_text(struct line_generator *lg, GtkLabel *lbl);
