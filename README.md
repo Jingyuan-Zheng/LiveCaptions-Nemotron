@@ -6,6 +6,12 @@ A privacy-focused Linux live-caption application powered by **NVIDIA Nemotron 3.
 
 This is a modified version of [abb128/LiveCaptions](https://github.com/abb128/LiveCaptions). It keeps the original GTK/Libadwaita captioning experience while replacing the retired April-ASR/ONNX pipeline with the native streaming C API from [NVIDIA NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp).
 
+<p align="center">
+  <img src="screenshot.png" alt="LiveCaptions caption window demo" width="836">
+</p>
+
+<p align="center"><em>Compact live-caption window over desktop content.</em></p>
+
 > [!WARNING]
 > Speech recognition and machine translation can make mistakes, especially with names, numbers, accents, overlapping speakers, and noisy audio. Do not rely on the output for safety-critical, legal, medical, or financial decisions.
 

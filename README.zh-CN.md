@@ -6,6 +6,12 @@
 
 项目基于 [abb128/LiveCaptions](https://github.com/abb128/LiveCaptions) 修改，保留原有 GTK/Libadwaita 字幕体验，并以 [NVIDIA NeMo-Speech.cpp](https://github.com/NVIDIA/NeMo-Speech.cpp) 原生流式 C API 替换原 April-ASR/ONNX 推理链。
 
+<p align="center">
+  <img src="screenshot.png" alt="LiveCaptions 字幕窗口演示" width="836">
+</p>
+
+<p align="center"><em>悬浮在桌面内容之上的紧凑实时字幕窗口。</em></p>
+
 > [!WARNING]
 > 语音识别和机器翻译都可能出错，姓名、数字、口音、多人同时说话和嘈杂环境尤其如此。请勿将结果用于安全、法律、医疗或财务等关键决策。
 
